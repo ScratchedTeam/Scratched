@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratched — твоя офлайн платформа для творчества</title>
+    <link rel="icon" type="image/x-icon" href="https://scratch.mit.edu/favicon.ico">
+    <link rel="stylesheet" href="https://scratch.mit.edu/css/lib/normalize.min.css">
+    <link rel="stylesheet" href="https://scratch.mit.edu/common.css">
+    <link rel="stylesheet" href="https://scratch.mit.edu/splash.css">
+</head>
+<body>
+
+<div id="navigation">
+    <div class="inner">
+        <ul>
+            <li class="logo"><a href="index.html" style="background-image: none; display: flex; align-items: center; gap: 8px;">
+                <span style="color: white; font-size: 1.3rem; font-weight: bold;">Scratched</span>
+            </a></li>
+            <li class="link"><a href="editor.html">Создавай</a></li>
+            <li class="link"><a href="#" id="exploreLink">Исследуй</a></li>
+            <li class="link"><a href="#" id="ideasLink">Идеи</a></li>
+            <li class="search">
+                <form class="form" onsubmit="return false;">
+                    <div class="row">
+                        <input type="text" class="input" id="searchInput" placeholder="Поиск проектов...">
+                        <button type="button" class="btn-search button transparent" id="searchBtn"></button>
+                    </div>
+                </form>
+            </li>
+            <li class="link messages"><a href="#">Сообщения</a><span class="message-count" style="display: none;">0</span></li>
+            <li class="link mystuff"><a href="#" id="myProjectsLink">Мои проекты</a></li>
+        </ul>
+    </div>
+</div>
+
+<div id="view">
+    <div class="inner">
+        <div class="title-banner" style="background-color: hsl(260,60%,60%); margin-top: 0;">
+            <div class="inner">
+                <h1 class="title-banner-h1">Scratched</h1>
+                <p class="title-banner-p">Создавай проекты с Blockly. Сохраняй в .szi. Работает офлайн.</p>
+            </div>
+        </div>
+
+        <div style="padding: 2rem 0;">
+            <div class="flex-row" style="justify-content: center; gap: 1rem; margin-bottom: 3rem;">
+                <button class="button large" id="newProjectBtn" style="background: hsl(144,45%,36%);">+ Новый проект</button>
+                <button class="button large white" id="importProjectBtn">📂 Импорт .szi</button>
+            </div>
+
+            <h3 style="margin-bottom: 1rem;">📁 Мои проекты</h3>
+            <div id="projectsList" style="display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 3rem;">
+                <div class="box" style="width: 100%; text-align: center; padding: 2rem;">
+                    <p>У вас пока нет проектов. Создайте первый!</p>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 1rem;">⭐ Примеры проектов</h3>
+            <div class="projects-grid" id="examplesGrid" style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+                <div class="box" style="width: 280px; cursor: pointer;" onclick="loadExample('hello')">
+                    <div class="box-header"><h5>Привет, мир!</h5></div>
+                    <div class="box-content">
+                        <div style="height: 140px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; margin-bottom: 1rem;"></div>
+                        <p>Простой проект с блоком "сказать"</p>
+                    </div>
+                </div>
+                <div class="box" style="width: 280px; cursor: pointer;" onclick="loadExample('draw')">
+                    <div class="box-header"><h5>Рисовалка</h5></div>
+                    <div class="box-content">
+                        <div style="height: 140px; background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 8px; margin-bottom: 1rem;"></div>
+                        <p>Рисуем круги и линии</p>
+                    </div>
+                </div>
+                <div class="box" style="width: 280px; cursor: pointer;" onclick="loadExample('loop')">
+                    <div class="box-header"><h5>Повторялка</h5></div>
+                    <div class="box-content">
+                        <div style="height: 140px; background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); border-radius: 8px; margin-bottom: 1rem;"></div>
+                        <p>Изучаем циклы</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="footer">
+    <div class="inner">
+        <div class="lists">
+            <dl><dt><span>Scratched</span></dt><dd><a href="#">О платформе</a></dd><dd><a href="#">Версия 1.0</a></dd></dl>
+            <dl><dt><span>Форматы</span></dt><dd><a href="#">.szi — проекты</a></dd><dd><a href="#">Blockly</a></dd></dl>
+            <dl><dt><span>Ресурсы</span></dt><dd><a href="#">Идеи</a></dd><dd><a href="#">Помощь</a></dd></dl>
+        </div>
+        <div class="copyright"><p>© 2026 Scratched. Работает офлайн. Твори без границ!</p></div>
+    </div>
+</div>
+
+<script>
+    let projects = [];
+    
+    function loadProjects() {
+        const saved = localStorage.getItem('scratched_projects');
+        if (saved) {
+            projects = JSON.parse(saved);
+        } else {
+            projects = [];
+        }
+        renderProjects();
+    }
+    
+    function saveProjects() {
+        localStorage.setItem('scratched_projects', JSON.stringify(projects));
+    }
+    
+    function renderProjects() {
+        const container = document.getElementById('projectsList');
+        if (projects.length === 0) {
+            container.innerHTML = '<div class="box" style="width: 100%; text-align: center; padding: 2rem;"><p>📭 У вас пока нет проектов. Создайте первый!</p></div>';
+            return;
+        }
+        
+        container.innerHTML = projects.map(proj => `
+            <div class="box" style="width: 280px; cursor: pointer;" onclick="openProject('${proj.id}')">
+                <div class="box-header"><h5>${escapeHtml(proj.name)}</h5></div>
+                <div class="box-content">
+                    <div style="height: 140px; background: ${proj.color || 'linear-gradient(135deg, #855DE8 0%, #6B46C8 100%)'}; border-radius: 8px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; color: white;">
+                        🎨
+                    </div>
+                    <p style="font-size: 0.85rem; color: #888;">${proj.date || new Date().toLocaleDateString()}</p>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button class="button white" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="event.stopPropagation(); openProject('${proj.id}')">Открыть</button>
+                        <button class="button fail" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="event.stopPropagation(); deleteProject('${proj.id}')">Удалить</button>
+                        <button class="button" style="padding: 0.25rem 0.75rem; font-size: 0.75rem;" onclick="event.stopPropagation(); exportProject('${proj.id}')">📎 .szi</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    function openProject(id) {
+        const project = projects.find(p => p.id === id);
+        if (project) {
+            localStorage.setItem('current_project', JSON.stringify(project));
+            window.location.href = 'editor.html';
+        }
+    }
+    
+    function deleteProject(id) {
+        if (confirm('Удалить проект?')) {
+            projects = projects.filter(p => p.id !== id);
+            saveProjects();
+            renderProjects();
+        }
+    }
+    
+    function exportProject(id) {
+        const project = projects.find(p => p.id === id);
+        if (project) {
+            const data = JSON.stringify(project);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${project.name}.szi`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    }
+    
+    function importProject(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const project = JSON.parse(e.target.result);
+                if (project.name && project.xml) {
+                    project.id = Date.now().toString();
+                    project.date = new Date().toLocaleDateString();
+                    projects.push(project);
+                    saveProjects();
+                    renderProjects();
+                    alert('Проект импортирован!');
+                } else {
+                    alert('Неверный формат .szi файла');
+                }
+            } catch(err) {
+                alert('Ошибка при импорте');
+            }
+        };
+        reader.readAsText(file);
+    }
+    
+    document.getElementById('newProjectBtn')?.addEventListener('click', () => {
+        const name = prompt('Название проекта:', 'Мой проект');
+        if (name) {
+            const newProject = {
+                id: Date.now().toString(),
+                name: name,
+                xml: '<xml></xml>',
+                date: new Date().toLocaleDateString(),
+                color: 'linear-gradient(135deg, #855DE8 0%, #6B46C8 100%)'
+            };
+            projects.push(newProject);
+            saveProjects();
+            localStorage.setItem('current_project', JSON.stringify(newProject));
+            window.location.href = 'editor.html';
+        }
+    });
+    
+    document.getElementById('importProjectBtn')?.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.szi';
+        input.onchange = (e) => {
+            if (e.target.files[0]) importProject(e.target.files[0]);
+        };
+        input.click();
+    });
+    
+    document.getElementById('myProjectsLink')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('projectsList').scrollIntoView({ behavior: 'smooth' });
+    });
+    
+    window.loadExample = function(type) {
+        let example = null;
+        if (type === 'hello') {
+            example = {
+                name: 'Привет, мир!',
+                xml: '<xml xmlns="https://developers.google.com/blockly/xml"><block type="say_hello" x="100" y="100"><value name="MESSAGE"><block type="text"><field name="TEXT">Привет, Scratched!</field></block></value></block></xml>'
+            };
+        } else if (type === 'draw') {
+            example = {
+                name: 'Рисовалка',
+                xml: '<xml xmlns="https://developers.google.com/blockly/xml"><block type="draw_circle" x="100" y="100"></block><block type="move_forward" x="100" y="200"><field name="STEPS">50</field></block></xml>'
+            };
+        } else if (type === 'loop') {
+            example = {
+                name: 'Повторялка',
+                xml: '<xml xmlns="https://developers.google.com/blockly/xml"><block type="repeat_loop" x="100" y="100"><value name="TIMES"><block type="math_number"><field name="NUM">3</field></block></value><statement name="DO"><block type="say_hello"><value name="MESSAGE"><block type="text"><field name="TEXT">Привет!</field></block></value></block></statement></block></xml>'
+            };
+        }
+        
+        if (example) {
+            example.id = Date.now().toString();
+            example.date = new Date().toLocaleDateString();
+            example.color = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            projects.push(example);
+            saveProjects();
+            renderProjects();
+            alert(`Пример "${example.name}" добавлен в ваши проекты!`);
+        }
+    };
+    
+    document.getElementById('searchInput')?.addEventListener('input', function(e) {
+        const query = e.target.value.toLowerCase();
+        const filtered = projects.filter(p => p.name.toLowerCase().includes(query));
+        const container = document.getElementById('projectsList');
+        if (filtered.length === 0) {
+            container.innerHTML = '<div class="box" style="width: 100%; text-align: center; padding: 2rem;"><p>🔍 Ничего не найдено</p></div>';
+        } else {
+            container.innerHTML = filtered.map(proj => `
+                <div class="box" style="width: 280px; cursor: pointer;" onclick="openProject('${proj.id}')">
+                    <div class="box-header"><h5>${escapeHtml(proj.name)}</h5></div>
+                    <div class="box-content">
+                        <div style="height: 140px; background: ${proj.color || '#855DE8'}; border-radius: 8px; margin-bottom: 1rem;"></div>
+                        <button class="button white" style="padding: 0.25rem 0.75rem;" onclick="event.stopPropagation(); openProject('${proj.id}')">Открыть</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    });
+    
+    loadProjects();
+</script>
+</body>
+</html>
