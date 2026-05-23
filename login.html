@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в Scratched</title>
+    <link rel="icon" type="image/x-icon" href="https://scratch.mit.edu/favicon.ico">
+    <link rel="stylesheet" href="https://scratch.mit.edu/css/lib/normalize.min.css">
+    <link rel="stylesheet" href="https://scratch.mit.edu/common.css">
+    <link rel="stylesheet" href="https://scratch.mit.edu/splash.css">
+</head>
+<body>
+
+<div id="navigation">
+    <div class="inner">
+        <ul>
+            <li class="logo"><a href="/" style="background-image: none; display: flex; align-items: center; gap: 8px;">
+                <span style="color: white; font-size: 1.3rem; font-weight: bold;">Scratched</span>
+            </a></li>
+            <li class="link"><a href="/create">Создавай</a></li>
+            <li class="link"><a href="/explore">Исследуй</a></li>
+            <li class="link"><a href="/ideas">Идеи</a></li>
+            <li class="search">
+                <form class="form" action="/search" method="GET">
+                    <div class="row">
+                        <input type="text" class="input" name="q" placeholder="Поиск проектов...">
+                        <button type="submit" class="btn-search button transparent"></button>
+                    </div>
+                </form>
+            </li>
+            <li class="link messages"><a href="/messages">Сообщения</a><span class="message-count" style="display: none;">0</span></li>
+            <li class="link mystuff"><a href="/mystuff">Мои работы</a></li>
+            <li class="account-nav">
+                <div class="user-info" style="cursor: pointer;">
+                    <div class="avatar-wrapper" style="--avatar-size:24px">
+                        <img class="avatar" src="https://cdn2.scratch.mit.edu/get_image/user/default_60x60.png">
+                    </div>
+                    <span class="username">Войти</span>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<div id="view">
+    <div class="inner">
+        <div style="padding: 3rem 0;">
+            <div class="box" style="max-width: 450px; margin: 0 auto;">
+                <div class="box-header">
+                    <h4>Вход в Scratched</h4>
+                </div>
+                <div class="box-content">
+                    <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div class="avatar-wrapper" style="--avatar-size: 80px; margin: 0 auto 1rem;">
+                            <img class="avatar" id="loginAvatar" src="https://cdn2.scratch.mit.edu/get_image/user/default_60x60.png" style="border-radius: 50%;">
+                        </div>
+                        <p class="intro" style="font-size: 1rem;">Войдите в Scratched, чтобы создавать проекты с Blockly</p>
+                    </div>
+                    
+                    <form id="loginForm">
+                        <div class="row">
+                            <label for="username">Имя пользователя</label>
+                            <input type="text" id="username" name="username" class="input" placeholder="Твой логин" required>
+                        </div>
+                        <div class="row">
+                            <label for="password">Пароль</label>
+                            <input type="password" id="password" name="password" class="input" placeholder="Твой пароль" required>
+                        </div>
+                        <div id="loginError" class="error-text" style="display: none; margin-top: 0.5rem; padding: 0.5rem;"></div>
+                        <div class="flex-row" style="justify-content: space-between; margin-top: 1.5rem;">
+                            <button type="submit" class="button pass" id="loginBtn" style="width: 100%;">Войти</button>
+                        </div>
+                        <div style="text-align: center; margin-top: 1rem;">
+                            <a href="#" id="showRegisterLink" style="font-size: 0.85rem;">Нет аккаунта? Зарегистрироваться</a>
+                        </div>
+                    </form>
+                    
+                    <div id="loginSpinner" class="studio-status-icon-spinner" style="display: none; margin: 1rem auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="footer">
+    <div class="inner">
+        <div class="lists">
+            <dl><dt><span>О Scratched</span></dt><dd><a href="/about">О платформе</a></dd><dd><a href="/for-educators">Для учителей</a></dd></dl>
+            <dl><dt><span>Сообщество</span></dt><dd><a href="/guidelines">Правила</a></dd><dd><a href="/discuss">Форумы</a></dd></dl>
+            <dl><dt><span>Ресурсы</span></dt><dd><a href="/ideas">Идеи</a></dd><dd><a href="/faq">FAQ</a></dd></dl>
+            <dl><dt><span>Права</span></dt><dd><a href="/terms">Условия</a></dd><dd><a href="/privacy">Конфиденциальность</a></dd></dl>
+        </div>
+        <div class="copyright"><p>© 2026 Scratched. Создавай с Blockly!</p></div>
+    </div>
+</div>
+
+<script>
+    const loginForm = document.getElementById('loginForm');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginError = document.getElementById('loginError');
+    const loginSpinner = document.getElementById('loginSpinner');
+    const loginAvatar = document.getElementById('loginAvatar');
+    const loginBtn = document.getElementById('loginBtn');
+    
+    let users = JSON.parse(localStorage.getItem('scratched_users') || '[]');
+    
+    function generateAvatar(username) {
+        const colors = ['#855DE8', '#0FBD8C', '#FF8C42', '#4C97FF'];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='${encodeURIComponent(color)}'/%3E%3Ccircle cx='35' cy='40' r='6' fill='white'/%3E%3Ccircle cx='65' cy='40' r='6' fill='white'/%3E%3Cpath d='M35 65 Q50 80 65 65' stroke='white' stroke-width='4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E`;
+    }
+    
+    usernameInput.addEventListener('input', function() {
+        const val = this.value.trim();
+        if (val) {
+            loginAvatar.src = generateAvatar(val);
+        } else {
+            loginAvatar.src = 'https://cdn2.scratch.mit.edu/get_image/user/default_60x60.png';
+        }
+    });
+    
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const username = usernameInput.value.trim();
+        const password = passwordInput.value;
+        
+        if (!username || !password) {
+            loginError.textContent = 'Заполните оба поля';
+            loginError.style.display = 'block';
+            return;
+        }
+        
+        loginSpinner.style.display = 'inline-block';
+        loginBtn.disabled = true;
+        loginError.style.display = 'none';
+        
+        setTimeout(() => {
+            const user = users.find(u => u.username === username && u.password === password);
+            
+            if (user) {
+                const sessionId = 'session_' + Date.now() + '_' + Math.random();
+                const sessions = JSON.parse(localStorage.getItem('scratched_sessions') || '{}');
+                sessions[sessionId] = { userId: user.id, username: user.username };
+                localStorage.setItem('scratched_sessions', JSON.stringify(sessions));
+                localStorage.setItem('scratched_session', sessionId);
+                localStorage.setItem('scratched_current_user', JSON.stringify(user));
+                
+                window.location.href = 'editor.html';
+            } else {
+                loginSpinner.style.display = 'none';
+                loginBtn.disabled = false;
+                loginError.textContent = 'Неверное имя пользователя или пароль';
+                loginError.style.display = 'block';
+            }
+        }, 800);
+    });
+    
+    document.getElementById('showRegisterLink')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = 'register.html';
+    });
+</script>
+</body>
+</html>
