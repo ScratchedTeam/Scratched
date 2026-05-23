@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratched — Редактор</title>
+    <link rel="icon" type="image/x-icon" href="https://scratch.mit.edu/favicon.ico">
+    <link rel="stylesheet" href="https://scratch.mit.edu/css/lib/normalize.min.css">
+    <link rel="stylesheet" href="https://scratch.mit.edu/common.css">
+    <link rel="stylesheet" href="https://scratch.mit.edu/splash.css">
+    <script src="https://unpkg.com/blockly/blockly.min.js"></script>
+    <script src="https://unpkg.com/blockly/javascript_compressed.js"></script>
+    <style>
+        #blocklyDiv {
+            position: fixed;
+            top: 50px;
+            left: 0;
+            right: 0;
+            bottom: 60px;
+            background: #f0f0f0;
+        }
+        .toolbar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            padding: 10px 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+        .output-area {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            width: 320px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 200;
+            display: none;
+        }
+        .output-header {
+            background: hsl(260,60%,60%);
+            color: white;
+            padding: 10px;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+        }
+        .output-content {
+            padding: 10px;
+            max-height: 300px;
+            overflow: auto;
+            font-family: monospace;
+            font-size: 12px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        #stageCanvas {
+            border: 2px solid #855DE8;
+            border-radius: 8px;
+            margin-top: 10px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="navigation">
+    <div class="inner">
+        <ul>
+            <li class="logo"><a href="index.html" style="background-image: none; display: flex; align-items: center; gap: 8px;">
+                <span style="color: white; font-size: 1.3rem; font-weight: bold;">Scratched</span>
+            </a></li>
+            <li class="link"><a href="#" id="saveBtn">💾 Сохранить</a></li>
+            <li class="link"><a href="#" id="exportSziBtn">📎 Экспорт .szi</a></li>
+            <li class="link"><a href="#" id="runBtn">▶ Запустить</a></li>
+            <li class="link"><a href="#" id="clearBtn">🗑 Очистить</a></li>
+            <li class="right"><span id="projectName" style="color: white; padding: 13px 15px; display: inline-block; font-weight: bold;"></span></li>
+        </ul>
+    </div>
+</div>
+
+<div id="view">
+    <div class="inner">
+        <div id="blocklyDiv"></div>
+    </div>
+</div>
+
+<div class="toolbar">
+    <button class="button pass" id="runCodeBtn">▶ Запустить код</button>
+    <button class="button" id="stopCodeBtn">⏹ Остановить</button>
+    <button class="button white" id="showOutputBtn">📋 Показать вывод</button>
+    <button class="button white" id="homeBtn">🏠 На главную</button>
+</div>
+
+<div class="output-area" id="outputArea">
+    <div class="output-header" id="outputHeader">
+        📟 Выполнение программы
+    </div>
+    <div class="output-content" id="outputContent">
+        <div id="outputText">Нажмите "Запустить код"</div>
+        <canvas id="stageCanvas" width="200" height="200" style="display: none;"></canvas>
+    </div>
+</div>
+
+<script>
+    let workspace = null;
+    let currentProject = null;
+    let intervalId = null;
+    
+    Blockly.Blocks['say_hello'] = {
+        init: function() {
+            this.appendDummyInput().appendField("сказать");
+            this.appendValueInput("MESSAGE").setCheck("String");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(160);
+        }
+    };
+    
+    Blockly.JavaScript['say_hello'] = function(block) {
+        var message = Blockly.JavaScript.valueToCode(block, 'MESSAGE', Blockly.JavaScript.ORDER_ATOMIC) || '""';
+        return 'addOutput("💬 " + ' + message + ');\n';
+    };
+    
+    Blockly.Blocks['move_forward'] = {
+        init: function() {
+            this.appendDummyInput().appendField("двинуться вперёд на").appendField(new Blockly.FieldNumber(10), "STEPS").appendField("шагов");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(290);
+        }
+    };
+    
+    Blockly.JavaScript['move_forward'] = function(block) {
+        var steps = block.getFieldValue('STEPS');
+        return 'addOutput("🚶 двигаемся на ' + steps + ' шагов");\n';
+    };
+    
+    Blockly.Blocks['repeat_loop'] = {
+        init: function() {
+            this.appendValueInput("TIMES").setCheck("Number").appendField("повторить");
+            this.appendStatementInput("DO").appendField("раз");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(120);
+        }
+    };
+    
+    Blockly.JavaScript['repeat_loop'] = function(block) {
+        var times = Blockly.JavaScript.valueToCode(block, 'TIMES', Blockly.JavaScript.ORDER_ASSIGNMENT) || '1';
+        var branch = Blockly.JavaScript.statementToCode(block, 'DO');
+        return 'for (var i = 0; i < ' + times + '; i++) {\n' + branch + '}\n';
+    };
+    
+    Blockly.Blocks['draw_circle'] = {
+        init: function() {
+            this.appendDummyInput().appendField("нарисовать круг");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(230);
+        }
+    };
+    
+    Blockly.JavaScript['draw_circle'] = function(block) {
+        return 'drawCircle();\n';
+    };
+    
+    Blockly.Blocks['draw_line'] = {
+        init: function() {
+            this.appendDummyInput().appendField("нарисовать линию");
+            this.appendDummyInput().appendField("от X").appendField(new Blockly.FieldNumber(0), "X1").appendField("Y").appendField(new Blockly.FieldNumber(0), "Y1");
+            this.appendDummyInput().appendField("до X").appendField(new Blockly.FieldNumber(100), "X2").appendField("Y").appendField(new Blockly.FieldNumber(100), "Y2");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(230);
+        }
+    };
+    
+    Blockly.JavaScript['draw_line'] = function(block) {
+        var x1 = block.getFieldValue('X1');
+        var y1 = block.getFieldValue('Y1');
+        var x2 = block.getFieldValue('X2');
+        var y2 = block.getFieldValue('Y2');
+        return 'drawLine(' + x1 + ', ' + y1 + ', ' + x2 + ', ' + y2 + ');\n';
+    };
+    
+    window.addOutput = function(text) {
+        const outputDiv = document.getElementById('outputText');
+        outputDiv.innerHTML += text + '<br>';
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+    };
+    
+    window.drawCircle = function() {
+        const canvas = document.getElementById('stageCanvas');
+        canvas.style.display = 'block';
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.arc(100, 100, 40, 0, 2 * Math.PI);
+        ctx.fillStyle = '#855DE8';
+        ctx.fill();
+        ctx.stroke();
+        addOutput("🎨 нарисован круг");
+    };
+    
+    window.drawLine = function(x1, y1, x2, y2) {
+        const canvas = document.getElementById('stageCanvas');
+        canvas.style.display = 'block';
+        const ctx = canvas.getContext('2d');
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = '#FF8C42';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        addOutput(`📏 линия от (${x1},${y1}) до (${x2},${y2})`);
+    };
+    
+    const savedProject = localStorage.getItem('current_project');
+    if (savedProject) {
+        currentProject = JSON.parse(savedProject);
+        document.getElementById('projectName').textContent = currentProject.name;
+    } else {
+        currentProject = { name: 'Новый проект', xml: '<xml></xml>' };
+        document.getElementById('projectName').textContent = 'Новый проект';
+    }
+    
+    workspace = Blockly.inject('blocklyDiv', {
+        toolbox: `
+            <xml id="toolbox" style="display: none">
+                <category name="🎤 Действия" colour="160">
+                    <block type="say_hello"></block>
+                    <block type="move_forward"></block>
+                </category>
+                <category name="🎨 Рисование" colour="230">
+                    <block type="draw_circle"></block>
+                    <block type="draw_line"></block>
+                </category>
+                <category name="🔄 Управление" colour="120">
+                    <block type="repeat_loop"></block>
+                </category>
+                <category name="🔢 Значения" colour="210">
+                    <block type="math_number"></block>
+                    <block type="text"></block>
+                </category>
+            </xml>
+        `,
+        grid: { spacing: 20, length: 3, colour: '#ccc' },
+        zoom: { controls: true, wheel: true }
+    });
+    
+    if (currentProject.xml && currentProject.xml !== '<xml></xml>') {
+        try {
+            const xml = Blockly.Xml.textToDom(currentProject.xml);
+            Blockly.Xml.domToWorkspace(xml, workspace);
+        } catch(e) {}
+    }
+    
+    document.getElementById('saveBtn').addEventListener('click', () => {
+        const xml = Blockly.Xml.workspaceToDom(workspace);
+        const xmlText = Blockly.Xml.domToText(xml);
+        currentProject.xml = xmlText;
+        
+        let projects = JSON.parse(localStorage.getItem('scratched_projects') || '[]');
+        const index = projects.findIndex(p => p.id === currentProject.id);
+        if (index !== -1) {
+            projects[index] = currentProject;
+        } else {
+            currentProject.id = Date.now().toString();
+            projects.push(currentProject);
+        }
+        localStorage.setItem('scratched_projects', JSON.stringify(projects));
+        localStorage.setItem('current_project', JSON.stringify(currentProject));
+        alert('✅ Проект сохранён!');
+    });
+    
+    document.getElementById('exportSziBtn').addEventListener('click', () => {
+        const xml = Blockly.Xml.workspaceToDom(workspace);
+        const xmlText = Blockly.Xml.domToText(xml);
+        const exportProject = {
+            name: currentProject.name,
+            xml: xmlText,
+            version: '1.0',
+            date: new Date().toISOString()
+        };
+        const data = JSON.stringify(exportProject);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${currentProject.name}.szi`;
+        a.click();
+        URL.revokeObjectURL(url);
+        alert('📎 Проект экспортирован в .szi');
+    });
+    
+    document.getElementById('runCodeBtn').addEventListener('click', () => {
+        document.getElementById('outputText').innerHTML = '';
+        const canvas = document.getElementById('stageCanvas');
+        canvas.style.display = 'none';
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 200, 200);
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0, 0, 200, 200);
+        
+        try {
+            const code = Blockly.JavaScript.workspaceToCode(workspace);
+            if (code.trim()) {
+                addOutput("🚀 Запуск программы...\n");
+                eval(code);
+                addOutput("\n✅ Программа завершена");
+            } else {
+                addOutput("📦 Создайте программу, перетаскивая блоки!");
+            }
+        } catch(e) {
+            addOutput("❌ Ошибка: " + e.message);
+        }
+    });
+    
+    document.getElementById('stopCodeBtn').addEventListener('click', () => {
+        addOutput("⏹ Программа остановлена");
+        if (intervalId) clearInterval(intervalId);
+    });
+    
+    document.getElementById('showOutputBtn').addEventListener('click', () => {
+        const outputArea = document.getElementById('outputArea');
+        outputArea.style.display = outputArea.style.display === 'none' ? 'block' : 'none';
+    });
+    
+    document.getElementById('outputHeader').addEventListener('click', () => {
+        document.getElementById('outputArea').style.display = 'none';
+    });
+    
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        if (confirm('Очистить рабочую область?')) {
+            workspace.clear();
+        }
+    });
+    
+    document.getElementById('homeBtn').addEventListener('click', () => {
+        window.location.href = 'index.html';
+    });
+    
+    document.getElementById('runBtn').addEventListener('click', () => {
+        document.getElementById('runCodeBtn').click();
+    });
+</script>
+</body>
+</html>
